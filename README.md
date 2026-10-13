@@ -5,9 +5,8 @@ Replication code for
 > **Pooled likelihood inference for covariate-dependent persistence in repeated short physiological recovery series**
 > Kaiqiong Zhao and Xuan Quynh Vo
 
-This package corresponds to the manuscript and supplement dated 13 October 2026. It contains the model and inference code, the simulation generators, the CGMacros application pipeline, the table and figure generators, a small test suite, and checked aggregate summaries of the published results. Raw participant data and large fit caches are **not** included; they are downloaded or regenerated locally.
+This packagecontains the model and inference code, the simulation generators, the CGMacros application pipeline, the table and figure generators, a small test suite, and checked aggregate summaries of the published results. Raw participant data and large fit caches are **not** included; they are downloaded or regenerated locally.
 
-Intended repository: `https://github.com/kaiqiong/pooled-state-space`
 
 ---
 
@@ -123,15 +122,7 @@ This mode never substitutes shipped reference summaries for missing regenerated 
 
 ## What is verified, and what is not
 
-Read `docs/VALIDATION.txt` before interpreting a run. It separates the checks completed while packaging (source identity with the working analysis code, 132 synthetic numerical checks, regeneration of the application episodes, bounded refits, exact reproduction of seven final summary tables from saved fits) from the full Monte Carlo experiments, which were **not** rerun during packaging. Machine-readable evidence is in `docs/validation/`.
-
-Two distinctions are preserved throughout the summary scripts:
-
-- under random participant heterogeneity the **conditional generating coefficients** differ from the **working-likelihood target** that the fitted model estimates, and
-- the **fixed** and **estimated** observation-variance designs have their own targets and their own generating parameters.
-
-One historical entry (the fixed-variance row of supplementary Table S1) has no traceable original script; reference mode labels it as a published-table snapshot and recomputed mode reports only the traceable examples. See `docs/OUTPUTS.txt`.
-
+Scope of verification. The shipped reference summaries reproduce the published tables from the saved fits and were checked during packaging; the full Monte Carlo and bootstrap experiments were not rerun. Under participant heterogeneity, coverage is reported against the working-likelihood target, which differs from the conditional generating coefficients, and the fixed- and estimated-variance designs have separate targets. Details and machine-readable evidence: docs/VALIDATION.txt, docs/validation/, docs/OUTPUTS.txt.
 ---
 
 ## Integrity check
