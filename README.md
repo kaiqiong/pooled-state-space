@@ -123,6 +123,8 @@ This mode never substitutes shipped reference summaries for missing regenerated 
 ## What is verified, and what is not
 
 Scope of verification. The shipped reference summaries reproduce the published tables from the saved fits and were checked during packaging; the full Monte Carlo and bootstrap experiments were not rerun. Under participant heterogeneity, coverage is reported against the working-likelihood target, which differs from the conditional generating coefficients, and the fixed- and estimated-variance designs have separate targets. Details and machine-readable evidence: docs/VALIDATION.txt, docs/validation/, docs/OUTPUTS.txt.
+
+
 ---
 
 ## Integrity check
