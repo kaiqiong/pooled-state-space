@@ -1,0 +1,3 @@
+"model","max_abs_diff_D","max_abs_diff_X","max_abs_diff_Iobs","Iobs_symmetry_max_abs","converged","n_iter"
+"homogeneous",7.34992312345639e-06,0.005682277595497,0.00568226553150453,1.81188397618826e-13,TRUE,194
+"regression",0.000943454292225307,0.0483867180171274,0.0483867151790491,1.98951966012828e-13,TRUE,470

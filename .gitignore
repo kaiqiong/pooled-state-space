@@ -1,0 +1,15 @@
+# Downloaded participant records and all generated analysis outputs
+/data/raw/
+/results/
+/.venv/
+/renv/library/
+/renv/staging/
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+.DS_Store
+__pycache__/
+*.pyc
+*.log
+*.zip

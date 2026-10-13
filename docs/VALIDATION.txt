@@ -1,0 +1,131 @@
+RELEASE VALIDATION: 2026-10-13
+
+Scope
+
+This record distinguishes checks performed while packaging the code from the
+original full-scale analyses. Full Monte Carlo fitting, millions of bootstrap
+refits, and all application B=2000 sensitivity runs were not rerun during
+packaging. The release contains their generators, fitting code and summaries;
+it does not contain precomputed fit caches. Saved original fits were used
+read-only in an isolated validation directory, solely as comparison inputs.
+
+Numerical core
+
+The parsed R expressions in state_space_em.R,
+free_variance_cluster_inference.R and mixed_latent_ar.R were verified identical
+to the working analysis sources. Only comments/headers were cleaned in these
+files. docs/core_sources.csv records original source hashes; the release
+manifest records hashes of distributed files.
+
+The short test suite (python3 run.py smoke) passed all 132 checks:
+  43 fixed-variance information checks, including independent dense Gaussian
+     likelihood Hessians and scores, at fitted and off-optimum parameters;
+  58 nuisance-parameter/clustered-inference checks, including Schur-complement
+     algebra, joint-parameter calculations, invariance and input guards;
+  31 free-variance checks, including per-episode analytic information against
+     dense Gaussian numerical derivatives, innovations likelihood agreement,
+     joint EM fitting and eight converged synthetic participant-bootstrap fits.
+These are implementation checks, not a coverage experiment. Small synthetic
+examples do not establish statistical performance in all designs.
+
+Application preparation and bounded fitting
+
+The official CGMacros v1.0.0 ZIP was checked against its published SHA-256.
+The downloader extracted the expected 46 CSVs from an existing local official
+ZIP. A new network download was not needed for this check.
+
+Regenerated primary episodes reproduced 1174 episodes from 44 participants,
+with 14 readings each; long episodes reproduced 1059 episodes from 44
+participants, with 25 readings each. Y, the covariate matrix, flags and
+timestamps matched the original constructed inputs exactly. Source-reading,
+five-minute-grid, reference-value and block-position checks passed.
+
+Application prepare and primary were exercised with PSS_B=4 in a separate
+development output directory. Positive fixed-variance regression coefficients
+agreed with the original within 9.57e-8, with the same likelihood and slightly
+different convergence iteration counts. Reduced-model primary coefficients
+agreed within 1.1e-10. The first four primary bootstrap fits converged and
+agreed within 1.7e-8; none was cap-active. The 44 participant-deletion fits and
+missing-position sensitivity also ran. These four draws are not replacements
+for the published B=2000 intervals.
+
+Winning fits in all four direct-maximization reference specifications matched
+the original regression coefficients, reference coefficients and likelihoods
+exactly when initialized from the saved original primary reference input.
+The final table/figure assembly was checked against the saved final aggregate
+outputs. Slow application profile and full-bootstrap sensitivity stages were
+not newly rerun in full.
+
+Frozen simulation truth and result reconstruction
+
+The full-precision generating parameters in config/generating_parameters.R
+were verified bit-for-bit against the original positive-variance and reduced
+design inputs. Hexadecimal literals preserve the exact doubles. Newly refitted
+application estimates remain separate from these constants. The simulation
+covariates and participant membership are regenerated from the source data.
+
+Forty generator/resampling-stream checks passed. Removing unused pilot
+bootstrap calculations did not change final per-dataset or B=999 streams.
+One dataset at each of four unguarded persistence levels reproduced the saved
+coefficient estimates and iteration counts exactly.
+
+Seven final summary CSVs, regenerated using the original saved fits read-only,
+matched every compared published numeric column exactly: boundary summaries,
+free-variance summaries, matched 200-dataset comparisons, 500-dataset analytic
+summaries, free-versus-fixed comparisons, paired bootstrap differences, and
+information ablation. All 1000 ablation datasets were regenerated and their
+score/information matrices recalculated; all 6000 covariance variants were
+valid. The maximum difference between reconstructed full standard errors and
+saved standard errors was 1.27898e-13. Independent Cholesky calculations and
+frozen-moment numerical Hessian checks passed. This verifies reconstruction
+and aggregation from saved estimates, not a fresh full fitting experiment.
+
+Machine-readable evidence is in docs/validation/. These CSVs contain test
+summaries only, not participant records or saved model/bootstrapping caches.
+Generated reports from a new run are written under results/validation or
+results/simulation/validation, independently of these release records.
+
+Tables, figures and portability
+
+All distributed R scripts were parsed, Python sources compiled, and stage
+entry points checked. The reference rendering route completed successfully.
+Main Table 1's numerical tokens matched the current three-panel manuscript
+table. Six R-rendered figure PNGs (1, 2, 3, 4, S1 and S3), using the appropriate
+reference or local application inputs, matched the current figures byte-for-byte
+in the tested environment. The Figure S2 window renderer also completed using
+local constructed readings. Individual traces are not shipped in reference/.
+See OUTPUTS.txt for environment and rendering qualifications.
+
+The release is checked for local-machine paths and dependencies on the authors'
+working folders. Code/reference file hashes are verified by run.py check.
+The GitHub Actions workflow runs integrity and synthetic checks when uploaded;
+the workflow itself has not been executed on GitHub during packaging.
+
+Known historical provenance gap
+
+The fixed-observation-variance row of supplementary Table S1 (reported maximum
+SE difference 3.9e-5) has no traceable original one-off script/numerical input.
+Reference mode labels it as a published-table snapshot. Recomputed mode
+reports the four traceable numerical examples and does not silently copy this
+fifth row. Current fixed-variance implementation checks are independently
+provided by the tests above. See OUTPUTS.txt for the exact distinction.
+
+Reproduction expectations
+
+Timing columns depend on the machine. Numerical tolerances and optimizer
+stopping can cause small platform-dependent differences; graphical software
+and fonts can affect appearance. Tested R package versions are recorded in
+config/. Use a fresh results directory after changing code, settings or the
+software environment; cached fitting files are not keyed by every input hash.
+
+
+Panel C estimation addition (2026-10-13)
+
+Panel C now reports signed bias and RMSE ranges using its existing matched
+cohorts: 200 positive-variance datasets and 1000 reduced-model datasets per
+heterogeneity setting. RMSE is reconstructed from bias and the sample SD as
+sqrt(bias^2 + (M-1)/M * SD^2). All 24 coefficient-level calculations were checked
+independently, and the positive-variance summaries were checked for identical
+point estimates across the four interval procedures. The renderer exports
+these calculations to table_1_C_estimation.csv. Panels A--B and every coverage
+entry are unchanged. No model fitting or bootstrap resampling was required.

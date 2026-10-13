@@ -1,0 +1,26 @@
+source("R/simulation_design.R")
+# Portable October 13 replication. Run from the repository root; see docs/SIMULATIONS.txt.
+## Second-start check of the ORIGINAL simulated-dataset fits (10 Oct 2026 audit item 2.3): every Part M v2 boundary dataset
+## (1000 per scenario) and every Part Q positive-variance dataset (500 per scenario) is regenerated from its seed and refitted
+## from (a) the generating coefficients with the generic nuisance start and (b) a naive-slope data-based start (boundary) or
+## the Part Q default start (posvar); the best log-likelihood is compared with the saved fit's (recomputed from its stored beta
+## by one EM pass). Usage: Rscript check_original_fits_second_start.R <posvar|boundary> <cores>
+args <- commandArgs(trailingOnly = TRUE); design <- args[1]; cores <- as.integer(args[2])
+source("R/state_space_em.R"); suppressPackageStartupMessages(library(parallel))
+f <- pss_simulation_design("positive"); Xmat <- f$Xmat; subj <- f$meta$subject; N <- nrow(Xmat); Tt <- ncol(f$Y); G <- 44; pn <- colnames(Xmat); p <- 6
+if (design == "posvar") { beta0 <- setNames(f$truth$beta, pn); a1_0 <- f$truth$a1; P1_0 <- f$truth$P1; se2_0 <- f$truth$sigma_eta2; r0 <- 400; seed_base <- 410000; raw <- readRDS("results/simulation/tables/part_q_raw.rds")$raw
+  gen <- function(tau, X = Xmat, cl = subj) { ug <- unique(cl); b <- setNames(rnorm(length(ug), 0, tau), ug); phi <- tanh(as.vector(X %*% beta0) + b[cl]); n <- nrow(X); al <- rnorm(n, a1_0, sqrt(P1_0)); y <- matrix(0, n, Tt); y[, 1] <- al + rnorm(n, 0, sqrt(r0)); for (t in 2:Tt) { al <- phi * al + rnorm(n, 0, sqrt(se2_0)); y[, t] <- al + rnorm(n, 0, sqrt(r0)) }; y }
+  saved_fit <- function(y, b) em_regression_mv(y, Xmat, 0, list(beta = b, a1 = mean(y[, 1]), P1 = max(var(y[, 1]) - r0, 100), sigma_eta2 = 35, sigma_eps2 = r0), thres = 1e-7, max_iter = 5000, fix_sigma_eps2 = r0)
+  starts <- function(y) list(generating = list(beta = beta0, a1 = mean(y[, 1]), P1 = max(var(y[, 1]) - r0, 100), sigma_eta2 = 35, sigma_eps2 = r0), zero_slopes = list(beta = c(atanh(0.9), rep(0, 5)), a1 = mean(y[, 1]), P1 = max(var(y[, 1]) - r0, 100), sigma_eta2 = 35, sigma_eps2 = r0)); thres <- 1e-7
+} else { f <- pss_simulation_design("boundary")
+  beta0 <- setNames(f$truth$beta, pn); a1_0 <- f$truth$a1; P1_0 <- f$truth$P1; se2_0 <- f$truth$sigma_eta2; r0 <- 0; seed_base <- 900000; raw <- readRDS("results/simulation/tables/part_m_boundary_v2_raw.rds")$raw
+  gen <- function(tau) { b_g <- setNames(rnorm(G, 0, tau), unique(subj)); phi <- tanh(as.vector(Xmat %*% beta0) + b_g[subj]); alpha <- y <- matrix(0, N, Tt); alpha[, 1] <- rnorm(N, a1_0, sqrt(P1_0)); y[, 1] <- alpha[, 1]; for (t in 2:Tt) { alpha[, t] <- phi * alpha[, t - 1] + rnorm(N, 0, sqrt(se2_0)); y[, t] <- alpha[, t] }; y }
+  saved_fit <- function(y, b) em_regression_mv(y, Xmat, 0, list(beta = b, a1 = mean(y[, 1]), P1 = max(var(y[, 1]), 1), sigma_eta2 = 35, sigma_eps2 = 0), thres = 1e-8, max_iter = 3000, fix_sigma_eps2 = 0)
+  starts <- function(y) list(generating = list(beta = beta0, a1 = mean(y[, 1]), P1 = max(var(y[, 1]), 1), sigma_eta2 = 35, sigma_eps2 = 0), zero_slopes = list(beta = c(atanh(0.9), rep(0, 5)), a1 = mean(y[, 1]), P1 = max(var(y[, 1]), 1), sigma_eta2 = 35, sigma_eps2 = 0)); thres <- 1e-8 }
+one <- function(m, tau) { set.seed(seed_base + 10000 * round(10 * tau) + m); y <- gen(tau); z <- raw[[as.character(tau)]][[m]]; sv <- saved_fit(y, z$beta); if (max(abs(sv$beta - z$beta)) > 1e-5) warning(sprintf("tau %s m %d: saved beta not reproduced (%.2e)", tau, m, max(abs(sv$beta - z$beta))))
+  alt <- lapply(starts(y), function(st) tryCatch(em_regression_mv(y, Xmat, 0, st, thres = thres, max_iter = 10000, fix_sigma_eps2 = r0), error = function(e) NULL))
+  ll <- sapply(alt, function(a) if (is.null(a)) NA else a$loglik); best <- which.max(ll)
+  data.frame(tau = tau, m = m, saved_loglik = sv$loglik, saved_status = sv$status, best_start = names(alt)[best], best_loglik = ll[best], improvement = ll[best] - sv$loglik, max_beta_diff = max(abs(alt[[best]]$beta - sv$beta)), best_status = alt[[best]]$status, alt_nonconv = sum(sapply(alt, function(a) is.null(a) || !a$converged)), ll_generating = ll["generating"], ll_zero = ll["zero_slopes"]) }
+jobs <- expand.grid(m = seq_along(raw[["0"]]), tau = c(0, 0.4)); t0 <- Sys.time(); res <- do.call(rbind, mclapply(seq_len(nrow(jobs)), function(k) one(jobs$m[k], jobs$tau[k]), mc.cores = cores, mc.preschedule = FALSE)); rownames(res) <- NULL
+cat(sprintf("%s: %d original fits checked in %.1f min\n", design, nrow(res), as.numeric(Sys.time() - t0, units = "mins"))); saveRDS(res, sprintf("results/simulation/tables/original_fits_second_start_%s.rds", design))
+for (tau in c(0, 0.4)) { r <- res[res$tau == tau, ]; cat(sprintf("  tau=%.1f: n=%d | better by >0.01: %d (max %.2f, max beta diff %.3f) | better by >1: %d | worse by >1 (alt starts): %d | saved cap-active: %d | alt non-converged: %d | best start interior/constrained: %d/%d\n", tau, nrow(r), sum(r$improvement > 0.01), max(r$improvement), if (any(r$improvement > 0.01)) max(r$max_beta_diff[r$improvement > 0.01]) else 0, sum(r$improvement > 1), sum(r$improvement < -1), sum(r$saved_status == "constrained"), sum(r$alt_nonconv), sum(r$best_status == "interior"), sum(r$best_status == "constrained"))) }

@@ -1,0 +1,8 @@
+"output","n_rows","numeric_columns","max_absolute_difference","pass"
+"tables/part_m_boundary_v2_working_summary.csv",12,62,0,TRUE
+"tables/part_r_summary.csv",12,28,0,TRUE
+"matched/paired_posvar200_free_variance_comparison.csv",48,20,0,TRUE
+"matched/free_variance_analytic500_summary.csv",36,17,0,TRUE
+"matched/free_fixed_matched200_comparison.csv",48,32,0,TRUE
+"matched/bootstrap_paired_comparisons.csv",12,13,0,TRUE
+"free_variance_ablation/results/summary.csv",72,21,0,TRUE

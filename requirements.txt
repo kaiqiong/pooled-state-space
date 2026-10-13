@@ -1,0 +1,4 @@
+# Only the illustrated raw-window figure uses Python plotting.
+# Numeric analyses and the other figures use R.
+numpy>=1.16
+matplotlib>=3.0

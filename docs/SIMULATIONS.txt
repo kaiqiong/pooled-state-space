@@ -1,0 +1,188 @@
+SIMULATION REPLICATION FOR THE OCTOBER 13 MANUSCRIPT
+
+Entry point
+  Rscript --vanilla scripts/simulation/run.R help
+  Rscript --vanilla scripts/simulation/run.R smoke
+
+The stage runner locates the repository from its own path and works from any
+current directory. Individual scripts are run from the repository root.
+Full simulations use the published replication counts, seeds, starts, iteration
+limits, tolerances, persistence cap and interval definitions. SIM_CORES or the
+second runner argument changes only parallel scheduling (default: 1). On Windows
+use one core. Contributed R packages: numDeriv, statmod, nlme. Other dependencies
+are supplied with R. Figure rendering has separate documented dependencies.
+
+Two distinct modes
+  reference/simulation/tables contains small published aggregate CSVs, for
+  comparison and rapid rendering. It contains no original model-fit or bootstrap
+  cache. Figures rendered from these aggregates do not rerun the simulations.
+  The following full commands regenerate all fits, participant resamples,
+  working-likelihood targets and summaries under results/simulation. They never
+  obtain numeric answers from the reference CSVs.
+
+Prerequisites and full command order
+  Obtain the public CGMacros input as described in docs/APPLICATION.txt.
+  Rscript --vanilla scripts/application/run.R preprocess
+  Rscript --vanilla scripts/application/run.R prepare
+  The prepare step is needed only for numerical checks of the current
+  application fit. Simulation generators/targets require preprocessing only;
+  they do not depend on the application bootstrap.
+
+  Rscript --vanilla scripts/simulation/run.R independent 1
+  Rscript --vanilla scripts/simulation/run.R targets 1
+  Rscript --vanilla scripts/simulation/run.R clustered 1
+  Rscript --vanilla scripts/simulation/run.R summaries 1
+  Rscript --vanilla scripts/simulation/run.R robustness 1
+  Rscript --vanilla scripts/simulation/run.R numerical 1
+  Rscript --vanilla scripts/simulation/run.R diagnostics 1
+  Rscript --vanilla scripts/simulation/run.R caps 1
+
+Alternatively run `Rscript --vanilla scripts/simulation/run.R all 1` after the
+application prerequisites. The full computation is substantial: the clustered
+stage alone fits 2,000 boundary originals and 1,000 originals for each positive-
+variance specification, plus 1,998,000 boundary and 399,600 resamples for EACH
+positive-variance specification. Diagnostics rerun another 999,000 heterogeneous
+boundary resamples; the cap study includes 635,370 cap-specific resample fits,
+followed by cross-cap restarts. No full Monte Carlo jobs run during smoke mode.
+Allow ample CPU time and disk space. Per-dataset bootstrap/free-variance caches
+and per-scenario raw caches resume when present. For a changed design, core code,
+R version, or settings, use a fresh results/simulation directory; the original
+cache layout does not encode every input in a configuration hash. Do not run
+multiple workers targeting the same cache files. Final summaries refuse missing
+planned IDs, incomplete bootstrap records or invalid final intervals.
+
+Application input and frozen simulation truth
+  results/application/application_design.rds supplies Y, Xmat, meta, flags
+  and slot_time, regenerated from the public input data. R/simulation_design.R
+  combines those arrays with full-precision aggregate generating parameters in
+  config/generating_parameters.R. These reproduce the exact positive and reduced
+  design truth used by the paper. Refitting the application cannot silently
+  redefine the simulation truth. The current application fits remain separate.
+  The clustered design is 1,174 episodes, 44 participants, T=14; covariate order
+  is intercept, age, sex, BMI, prediabetes and diabetes. The unit-information and
+  nuisance-information checks additionally read the freshly fitted
+  results/application/FINAL_fitted_models_final.rds.
+
+Main displays: scripts, regenerated outputs and counts
+  Table 1A / Figure 2A:
+    estimator_benchmark.R -> tables/part_g1_M60_beta_benchmark.csv
+    60 datasets at each noise variance 0.25, 1, 4; N=150,T=30; seed 31.
+    Joint EM, naive episode OLS, episode state-space ML, plus the original
+    additional comparator columns. The paper selects the first three methods.
+  Table 1B / Figure 2B:
+    clustered_free_variance.R -> freevar/tau*/m*.rds (500 per scenario)
+    free_variance_ablation.R -> free_variance_ablation/results/summary.csv
+    Three covariance calculations at unchanged fitted parameters: full joint,
+    omit the smoother-sensitivity correction, hold nuisance parameters fixed.
+    This recomputes all information/scores from regenerated datasets and checks
+    full SEs against each fitted record; no reference covariance is imported.
+  Table 1C / Figure 2C,D and supplementary matched comparison:
+    matched_comparison.R -> matched/paired_posvar200_free_variance_comparison.csv
+    Same first 200 datasets for model/CR0/MD/bootstrap, B=999 each; targets from
+    free_variance_target.R. Separate 500-dataset analytic summaries are saved.
+    summarize_fixed.R -> tables/part_m_boundary_v2_working_summary.csv
+    Boundary comparison: all 1,000 datasets per scenario, B=999 each.
+  Supplementary free-versus-fixed-positive-variance comparison:
+    matched_comparison.R -> matched/free_fixed_matched200_comparison.csv
+    Fixed-variance results are recomputed from the same datasets and resampling
+    seeds, never copied from a historical figure or review directory.
+
+All paths above are relative to results/simulation. Historical Part-style output
+basenames remain only to make provenance and manuscript comparisons unambiguous.
+Scripts themselves use descriptive names. scripts/figures renders the displays
+and prepares table comparisons; see its documentation for reference and fresh
+result modes.
+
+Supporting simulations (all output to results/simulation/tables)
+  base_coverage.R, M=150, seed12: part_e2_mv_coverage_summary.csv;
+    single-dataset numerical SE comparison uses seed11 and writes part_e1_*.
+  episode_size.R, M=100 per N/T cell, seed1000+N+T:
+    part_j_NT_sweep_summary.csv (supplementary episode-size figure).
+  interaction.R, M=150, seed42, checked dataset seed41:
+    part_h1_interaction_se_analytic_vs_numeric.csv and part_h2_*coverage_summary.csv.
+  simple_models.R: homogeneous M=200 seed100; binary regression M=100 seed101;
+    part_d_* coverage tables and original timing checks.
+  persistence_sweep.R, M=100 per level, seed2000+round(100*phi):
+    part_k_v2_phi_sweep_summary.csv; final inference excludes cap-active fits.
+    Optional argument `unguarded` disables the cap (phi_cap=1) with the same
+    generator/start/EM settings to reproduce the saturation diagnostic;
+    writes part_k_phi_sweep_unsafeguarded_summary.csv.
+  heavy_tails.R, M=150, seed3003: part_l_heavytail_summary.csv.
+  differential_attenuation.R, M=500 per setting, seed8000000+10000*setting+m:
+    part_n_final_summary.csv.
+  mixed_comparator.R, M=500 per tau, boundary data seeds:
+    part_p_mixed_comparator_v2_summary.csv. Uses R/mixed_latent_ar.R.
+  direct_optimization.R, seed70000+m: two base cells M=100 and high-persistence
+    M=50 plus application; part_o_direct_optimization_v2.csv.
+    Timing columns depend on hardware and are not expected to match exactly.
+  score_test_size_power.R, M=500 in each of five settings,
+    seed570000+1000*noise_SD+100*tau+m: score_test_size_power_v2.csv.
+    This supports the boundary-score-test narrative in the data supplement.
+
+Clustered seeds and fitting
+  Positive-variance data seed =410000+10000*round(10*tau)+m.
+  Boundary data seed =900000+10000*round(10*tau)+m.
+  Final participant-resampling seed = corresponding data seed +5000000.
+  Tau is 0 or 0.4. All episodes of a selected participant travel together.
+  Fixed-positive originals: M500, tolerance1e-7, max5000 iterations.
+  Free-positive originals: M500, tolerance1e-7, max20000 iterations.
+  Boundary originals: M1000, tolerance1e-8, max3000 iterations.
+  Final bootstrap: B999; free variance max20000, fixed variance max3000,
+  tolerance1e-6, retry nonconverged fits once at the published generic start
+  with max40000/free or10000/fixed. Converged cap-active refits are retained.
+  Full defaults match the paper; reduced M arguments to the free generator
+  are for method development only and cannot produce accepted final summaries.
+  Model intervals use normal quantiles, CR0/MD use t43, bootstrap intervals use
+  type-7 2.5%/97.5% percentiles. Working targets use 120-node quadrature under
+  tau0.4 and generating coefficients under tau0.
+
+Numerical and optimization checks
+  check_information.R validates the homogeneous/binary information examples.
+  check_unit_information.R and check_nuisance_inference.R compare per-unit
+  information and cluster-score calculations to independent algebra/numerical
+  derivatives, including the application input.
+  check_free_variance_derivatives.R and check_ablation_hessian.R use m001 from
+  each regenerated scenario; the latter verifies full-data and 17-episode
+  frozen-smoother negative-Q Hessians. check_ablation_summary.R independently
+  checks all 1,000 ablation records by Cholesky solves and participant influences.
+  check_original_starts.R reruns all fixed-variance originals from generating
+  coefficients and zero slopes. check_bootstrap_starts.R tests every one of the
+  999 heterogeneous boundary draws and all cap-active plus five interior draws
+  per heterogeneous fixed-positive dataset. check_coverage_effect.R reports
+  changed endpoints and coverage after substituting only better refits. These
+  diagnostics preserve the original estimates used in the manuscript tables.
+  check_md_conditioning.R reproduces the MD leverage-conditioning diagnostic.
+  cap_sensitivity.R and cap_multistart.R use caps .99,.995,.999, the original
+  application B2000 seed20260929, B999 on datasets1:100 per scenario and the
+  ten specified stress datasets. summarize_caps.R writes
+    cap_sensitivity_application_ms.csv, cap_sensitivity_simulation_ms.csv,
+    cap_sensitivity_multistart_record_ms.csv.
+  check_caps.R verifies feasible cross-cap likelihood comparisons to1e-3.
+
+Portability changes
+  Relative repository paths replace local machine and editorial/archive paths.
+  The final fixed/free target functions are explicit shared helpers; the obsolete
+  Monte Carlo target comparison is removed. Unused B99/B199 pilot bootstraps and
+  legacy CR2 output are removed from raw clustered generators. Every dataset
+  resets its own seed, and final B999 resampling resets an independent seed, so
+  this omission changes none of the retained draws or fits. The original simulation fitting
+  functions and generator expressions are unchanged; generating constants are
+  explicit full-precision inputs instead of incidental application refits. Free/fixed matched summaries
+  and ablation summaries now consume freshly generated results. Historical
+  before-versus-after implementation comparisons are omitted from numerical
+  checks. No manuscript review folders or private archive files are required.
+
+Verification scope
+  All distributed R scripts were parsed. The original homogeneous/binary
+  numerical-information examples and 40 explicit generator/resampling-stream
+  checks were run. Full Monte Carlo fitting and millions of bootstrap refits
+  were not rerun during packaging. See the release validation report for the
+  additional core numerical tests actually run. An isolated temporary validation
+  used existing saved simulation inputs read-only (not shipped in this release):
+  all seven checked final summary CSVs matched the published numeric columns
+  exactly, including recomputation of all 1,000 free-variance ablation records.
+  Independent Cholesky calculations and frozen-moment numerical Hessians passed.
+  One dataset at each of the four unguarded persistence levels reproduced the
+  saved estimates and iteration counts exactly. Packaging checks use archived
+  inputs only as a validation oracle; the released pipeline has no such input
+  dependency. This verifies aggregation/reconstruction, not a new full fitting run.

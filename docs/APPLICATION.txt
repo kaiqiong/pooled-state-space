@@ -1,0 +1,224 @@
+CGMacros application: final 13 October 2026 analysis
+===================================================
+
+Scope and input
+---------------
+These scripts implement the final manuscript cohort and boundary analysis:
+1174 65-minute episodes (14 readings each) from 44 participants, and the
+1059 120-minute episodes (25 readings) used in sensitivity analyses. They
+read the official CGMacros v1.0.0 CSV export. The repository does not contain
+raw participant records, participant-level derivatives, or fitted-data caches.
+Download the data using the repository data-download instructions first.
+Expected layout:
+
+  data/raw/CGMacros/bio.csv
+  data/raw/CGMacros/CGMacros-001/CGMacros-001.csv
+  data/raw/CGMacros/CGMacros-002/CGMacros-002.csv
+  ... (all official participant directories)
+
+R dependencies: base/recommended R packages and numDeriv. The application
+code was checked with R 4.3.2 and numDeriv 2016.8-1.1. Plot dependencies
+are documented separately. No machine-specific path is embedded in code.
+
+Commands (run from repository root)
+----------------------------------
+Run the following in order, or use the single `all` command below:
+
+  Rscript scripts/application/run.R preprocess
+  Rscript scripts/application/run.R prepare
+  Rscript scripts/application/run.R primary
+  Rscript scripts/application/run.R profile
+  Rscript scripts/application/run.R reference
+  Rscript scripts/application/run.R diagnostics
+  Rscript scripts/application/run.R tables
+
+  Rscript scripts/application/run.R all
+
+Each command is also callable from another directory using its full script
+path. Defaults are resolved relative to the repository, not the shell's
+working directory. Override input/output locations with --data DIR and
+--out DIR, or PSS_RAW_DATA and PSS_APPLICATION_OUT. Explicit relative override
+paths resolve against the launching shell's working directory.
+
+All generated outputs and log files go to results/application by default.
+The RDS files include participant-level data and must stay outside the
+public upload; repository ignore rules exclude generated results. There
+are no copies of historical fitted participant data in the release.
+
+Stages and dependencies
+-----------------------
+preprocess: final five-minute-grid reconstruction, 65/120-minute windows,
+  raw-data validation, demographics and episode-standardized design matrix.
+  Writes meal_windows_final_{65,120}min.rds, application_design.rds,
+  cohort_summary.csv, cohort_flow.csv and grid QC outputs. No model fit.
+prepare: fits the SD20 (variance 400) comparison model and collinear-as-missing
+  comparison; writes FINAL_fitted_models_final.rds. This object provides
+  the design and historical initialization for the primary analysis and
+  application-design simulations. Its historical filename is retained for
+  compatibility. It is not the manuscript's primary boundary fit.
+primary: fits the zero observation-variance model, nuisance-adjusted model,
+  CR0 and MD inference, 44 leave-one-participant-out fits, the collinear
+  sensitivity, and B=2000 participant bootstrap fits plus SD1 comparisons.
+  Writes PRIMARY_boundary.rds and primary_boundary_{joint,naive,
+  bootstrap_diagnostics,leave_one_out}.csv.
+profile: six starts at each fixed positive observation-error SD plus a
+  free-variance fit and continuation; writes sigma_eps2_profile_final*.csv
+  and RDS files. The continuation permits 20000 further iterations after
+  the initial 4000, exactly as in the source analysis. This stage is slow.
+reference: fixed-reference boundary fits (52), four-start direct likelihood
+  fits of estimated references (53), and B=2000 participant bootstrap fits
+  for every reference variant and window length (58).
+diagnostics: descriptive and schematic data, fixed-time window comparisons,
+  the boundary score diagnostic and mixed-effects comparator. Requires
+  preprocess, prepare and primary. Includes numerical Hessians and is slow.
+tables: assembles Tables S11-S14 and three aggregate reference-figure CSVs;
+  requires preprocess, primary, profile and reference outputs. In the
+  65-minute primary row it uses the Step 51 bootstrap, not the independent
+  pre-meal bootstrap generated during Step 58. This matches the manuscript.
+
+Preserved numerical controls
+----------------------------
+Primary bootstrap B=2000, seed 20260929; convergence threshold 1e-9 and
+maximum 3000 EM iterations in the boundary fitter. The reference bootstrap
+uses B=2000 and the original per-resample seeds:
+  fixed references: 58000000 + 10000*duration + 100*nchar(variant) + b
+  estimated references: 58100000 + 10000*duration + 100*nchar(variant) + b
+The same seed for each resample makes Step 58 independent of worker count.
+Default workers are 8 on Unix and 1 on Windows (mclapply platform limit).
+Set PSS_CORES explicitly to limit workers. Stationarity caps, likelihood
+formulas, optimizer tolerances, initialization and default reported
+bootstrap counts are unchanged unless described in the adaptations below.
+
+A limited development run (intervals are not publication results):
+
+  Rscript scripts/application/run.R preprocess --out results/application_check
+  Rscript scripts/application/run.R prepare --out results/application_check
+  PSS_B=4 PSS_CORES=1 Rscript scripts/application/run.R primary --out results/application_check
+  PSS_B=4 PSS_CORES=1 Rscript scripts/application/run.R reference --out results/application_check
+
+PSS_B must be at least 2 and changes bootstrap counts only. It does not
+reduce the cohort, optimizer iteration limits, or the 44 omission fits.
+Keep these development outputs separate from full-run output directories.
+Unset PSS_B for manuscript-size B=2000 runs.
+
+Frozen simulation design versus application estimates
+----------------------------------------------------
+config/generating_parameters.R stores the original final simulation truths:
+the positive-observation-variance parameters from FINAL_fitted_models_final
+and the reduced-model parameters from PRIMARY_boundary. Each contains beta,
+a1, P1, sigma_eta2 and sigma_eps2, with named beta coefficients matching
+the regenerated design columns. These are public aggregate design constants.
+They are not replacements for newly fitted application estimates.
+
+R/simulation_design.R provides pss_simulation_design("positive") or
+pss_simulation_design("boundary"). It reads Y, Xmat, meta, flags and slot_time
+from results/application/application_design.rds, validates the final cohort
+and column order, and adds the frozen parameters as $truth. Simulations
+therefore need preprocessing, not a refit merely to obtain generating
+parameters. include_application_fit=TRUE optionally returns the current
+application estimate separately as $application_fit. Actual application
+analyses continue fitting the data as before.
+
+Freezing the simulation truth prevents insignificant optimizer differences
+in a fresh application fit from changing simulated datasets, expected-
+likelihood targets or reconstructions of saved Monte Carlo runs. The config
+uses exact hexadecimal floating literals, with 17-digit decimal comments.
+This avoids one-unit-in-the-last-place decimal parsing differences observed
+in the tested R environment. Every parameter was verified bit-identical to
+the original saved generating value. The helper was also checked against
+the exactly regenerated Y/Xmat/flags and independently refitted estimates.
+
+Source mapping and packaging adaptations
+---------------------------------------
+The numbered files derive from real_data/CGMacros/scripts/ in the analysis
+project. The same basename is preserved for the following files:
+
+  native_detect.R
+  40_windows_final.R
+  41_refit_final.R
+  42_verify_final.R
+  44_profile_final.R
+  48_profile_intervals_final.R
+  49_descriptives_final.R
+  50_schematic_example_final.R
+  51_primary_boundary.R
+  52_setpoint_boundary.R
+  53_setpoint_boundary_directML.R
+  54_fixed_time_windows.R
+  55_boundary_score_test.R
+  56_mixed_model_application.R
+  58_setpoint_bootstrap_uniform.R
+
+run.R, 00_make_design.R, 01_native_qc.R and final_application_tables.R are
+new orchestration, preprocessing validation and output-assembly scripts.
+
+All raw, code and output paths are portable. Step 41 now reads demographics
+directly from bio.csv, using the original HbA1c category cut points and
+episode-weighted scaling, instead of requiring an obsolete fitted-data
+cache. Its six original aggregate starting coefficients are included as
+numeric constants. Historical old-cohort comparison printouts were removed;
+the comparison CSV is named fixed_sd20_coefficients.csv.
+
+Step 52 retains only the fixed-reference fits and data needed by Steps 53
+and 58. The historical estimated-reference EM fits at zero observation
+variance left their reference parameters unchanged; they are superseded
+by direct likelihood estimation in Step 53. Their pilot B=200/100 bootstrap
+is omitted. Step 53 keeps the direct likelihood and four starts, placing
+its existing seed 53 before construction of the random fourth start so
+the start is reproducible. Its obsolete B=500/300 pilot bootstrap is
+omitted; Step 58 supplies all reported reference-bootstrap intervals.
+Step 53 retains NA pilot-interval columns for output-schema compatibility.
+The four winning direct-ML beta, gamma and log-likelihood results were
+verified equal to the original saved winners after this seed adjustment.
+
+Step 55 replaces two top-level superassignments by local assignments so
+its temporary simulated data are visible when sourced in the runner's
+isolated script environment. This preserves the original stand-alone
+script semantics. Step 50 writes its four schematic CSVs locally rather
+than into the manuscript tree. Step 49 writes LaTeX rows locally.
+
+Scripts 43 and 45-47 are obsolete fixed-variance inference/pilot analyses
+superseded by the primary boundary and reference scripts; they are not
+part of the public execution chain. The cap-sensitivity analysis and
+simulation-only score-test calibration are handled by the simulation
+workflow. The release has no dependency on review/archive directories.
+
+Aggregate reference outputs
+---------------------------
+reference/application contains retained final summary CSVs and Tables
+S11-S14, for comparison before or after a long rerun. No participant rows
+or trajectories are included. Reference Step 52 estimated-reference rows
+were removed; Step 53 obsolete pilot uncertainty columns are NA. The final
+reference-bootstrap intervals are in setpoint_bootstrap_uniform.csv and
+the primary bootstrap intervals in primary_boundary_joint.csv.
+
+The final_application_tables.R assembler also writes:
+  fig_reference_choices.csv
+  fig_reference_descriptive_means.csv
+  fig_reference_descriptive_levels.csv
+Their numerical contents were verified exactly equal to the final
+manuscript figure inputs, including the matched N=1171 descriptive sample.
+
+Validation performed for the release
+------------------------------------
+All application R files parse. Raw-data preprocessing was run outside
+the release directory. Both complete window RDS objects matched the
+authoritative saved objects exactly (all.equal with tolerance zero), as
+did Y, Xmat, flags and slot timestamps. Retained cohorts were 1174/44/14
+and 1059/44/25. All raw-reading, exact-five-minute-interval, phase/block,
+search-coverage and baseline checks passed. The original-boundary
+three-iteration fit on the rebuilt design matched the saved beta exactly.
+Fixed-reference fits and all four direct-ML winners were rerun without
+bootstrap; the direct-ML beta, gamma and log likelihood matched exactly.
+The actual run.R prepare and primary stages were then run in a separate
+temporary output directory with PSS_B=4 and PSS_CORES=1. Both completed;
+all four primary refits converged without errors or cap activation. This
+checked the SD20 preparation fit, all 44 omission fits, missing-position
+sensitivity, bootstrap outputs and wrapper logging without a full run.
+With the regenerated preparation fit, maximum absolute beta differences
+from saved outputs were 9.6e-8 for SD20 and 1.1e-10 for the boundary model;
+the first four bootstrap beta vectors differed by at most 1.7e-8. Thus
+the wrapper reproduces the saved estimates within numerical tolerance.
+Full B=2000 bootstrap, full profile and slow diagnostic runs were not
+repeated during packaging; their supplied aggregate results are references,
+not a claim that those long runs were newly executed.

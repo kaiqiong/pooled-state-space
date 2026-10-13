@@ -1,0 +1,134 @@
+MANUSCRIPT OUTPUTS
+
+The output map refers to main_oct13.tex and supplement_oct13.tex, dated
+13 October 2026. It maps publication labels (which do not necessarily contain
+the printed number) to current figure/table numbers, numerical input summaries,
+calculation stages, and rendering commands. In particular fig:S3 is printed as
+Figure S2; do not infer the printed figure number from the label text.
+
+Two different operations are supported
+
+1. Render the checked published aggregate summaries (quick; no fitting):
+
+   python3 scripts/figures/run.py --source reference
+
+   This creates Figures 1, 2, 4, S1 and S3, the complete three-panel main
+   Table 1, and numerical CSV/TeX views of supplementary tables. Tables S11--S14
+   use the final application aggregate summaries in reference/application.
+   Figure 1 is simulated illustration, with fixed seeds and the rounded
+   persistence values used in the publication. Figure S3(a,b) is a noiseless
+   numerical illustration; S3(c) contains group averages, not individual traces.
+
+   Individual glucose traces are not redistributed. Figure 3 and Figure S2
+   therefore require the locally generated application outputs. They are not
+   replaced by synthetic records or copied publication PDFs in reference mode.
+   After preparing the local data, add --include-application to render them.
+
+2. Render newly recomputed analysis outputs:
+
+   Rscript scripts/application/run.R all --data data/raw/CGMacros
+   Rscript scripts/simulation/run.R all 1
+   python3 scripts/figures/run.py --source recomputed
+
+   These commands perform the full application and simulation calculations,
+   then render their outputs. Full replication is computationally substantial;
+   see APPLICATION.txt and SIMULATIONS.txt for individual stages and dependencies.
+   The simulation design uses the locally constructed CGMacros covariates and
+   participant membership. It cannot be reconstructed from the printed rounded
+   coefficient vector alone.
+
+   Recomputed mode reads only results/application and results/simulation.
+   It stops when a required numerical summary is missing. It does not silently
+   substitute reference results. Bootstrap counts and dataset counts must meet
+   the publication's specified sizes for its main figures/tables; development
+   runs with smaller counts should not be presented as the published experiment.
+
+Useful restricted commands
+
+   python3 scripts/figures/run.py --source reference --only simulation
+   python3 scripts/figures/run.py --source reference --only tables
+   python3 scripts/figures/run.py --source recomputed --only application
+   python3 scripts/figures/run.py --source recomputed --only window
+
+The R renderers can also be called directly; each states its positional arguments
+at the top. --results-dir changes the output root of the Python renderer. A
+Python interpreter with numpy and matplotlib is required for Figure S2; use
+--python PYTHON_EXECUTABLE if this differs from the interpreter used for the
+standard-library runner. Other figures use R with ggplot2, patchwork, dplyr and
+tidyr. The runners do not install packages or download participant data.
+The Figure S2 renderer was validated with Python 3.6.8, numpy 1.16.2 and
+matplotlib 3.0.2; the standard-library runner was validated separately with
+Python 3.7.2. These describe packaging validation, not a frozen Python lockfile.
+Use a supported Python version with the dependencies in requirements.txt.
+
+What the table renderer produces
+
+Main Table 1 is regenerated from numerical inputs using the publication layout:
+  A: independent-episode benchmark, M=60 at each observation variance;
+  B: full/free-variance information ablation, M=500 per heterogeneity setting;
+  C: signed bias ranges, RMSE ranges and interval coverage, using boundary
+     M=1000 and free-variance M=200; all procedures are matched within a row.
+Panel C computes point-estimation summaries once per coefficient because all
+four uncertainty procedures share the same fitted estimates. Bias and RMSE
+refer to the generating coefficient at tau=0 and the corresponding working-
+likelihood target at tau=0.4. The positive-variance summaries use the same 200
+datasets as the interval comparison, not the 500-dataset information study.
+Bias is displayed to four decimals and RMSE to three decimals; their ranges
+include all six regression coefficients. table_1_C_estimation.csv exports
+coefficient-level targets, mean estimates, signed biases, empirical SDs and
+RMSEs for all four settings. The renderer computes
+  RMSE = sqrt(bias^2 + (M-1)/M * empirical_SD^2),
+because the empirical SD uses the sample-variance denominator M-1. It checks
+that the positive-variance summaries agree across all four procedure rows.
+All ten parameters are estimated in the positive-variance rows of B--C.
+The figure's corresponding panels B--D also use the FREE-variance experiment.
+The fixed-SD-20 experiment is a separate comparison, not a substitute input.
+
+Supplementary table exports are numerical CSV views and simple TeX tabular
+fragments, not replicas of the journal's page layout. CSVs retain full precision;
+published prose/tables use rounded values. Panels and headings identify the
+comparison, and OUTPUT_MAP.csv identifies the matching publication table.
+The full main table fragment requires LaTeX booktabs and the manuscript's
+ordinary math support. Supplementary views can be reformatted without changing
+the underlying numeric CSVs.
+
+Table S1 provenance limitation
+
+Four rows (shared persistence, binary-covariate, four-covariate, interaction)
+are recomputed from the available per-parameter analytic/numerical SE CSVs.
+Reference mode exports all five published Table S1 rows from the explicitly
+labelled table_S1_published.csv snapshot. The older fixed-observation-variance
+row printed as 3.9e-5 has not been traced to a saved numeric input; its source
+is identified as the manuscript display only. table_S1_validation_checks.csv
+separately contains the four rows calculated from available numerical sources.
+Recomputed mode exports those fresh checks without importing a reference row. If fixed_variance_se_analytic_vs_numeric.csv is subsequently
+supplied with columns parameter, se_analytic, se_numeric, abs_diff, the renderer
+will include its maximum difference as a fifth row. Modern derivative validation
+jobs remain available independently of that historical displayed example.
+
+Interpretation details preserved in the exports
+
+- All coverage denominators and bootstrap B values are those of the stated cohort.
+- Under heterogeneity, clustered coverage uses each specification's working target.
+- The mixed-effects comparison (S6) instead measures both methods against the
+  conditional generating coefficient; it is not a common-estimand efficiency claim.
+- S7 N1/N2: group-specific initial means with white observation noise, original/null
+  group effects; N3/N4: group-specific observation SDs, original/null effects;
+  N5/N6: group-specific initial means without observation error, original/null effects.
+- S9 elapsed times depend on hardware, software versions and concurrent processes.
+- S10 uses cross-cap validated solutions and preserves the original cap rules.
+- Figure 4 and S14 use the primary 65-minute B=2000 bootstrap run for the primary
+  row and the uniform B=2000 reference-comparison run for the other rows. The
+  independent primary rerun has different Monte Carlo endpoints and is not mixed in.
+- For the 180-minute reference, the 65-minute interval includes zero; the
+  120-minute interval narrowly excludes zero. Matching windows isolates the
+  reference comparison from differences in the retained episode sample.
+
+Checked-input provenance
+
+reference/figures/INPUT_MANIFEST.csv contains relative paths, byte sizes and
+SHA-256 checksums. These are aggregate numerical summaries only. Rendering
+never writes into the reference directories; regenerated intermediate plotting
+summaries are written beneath results/figures. Full computation overwrites only
+its results destinations. No participant-level trace CSV or fitted object is
+included among the checked figure inputs.

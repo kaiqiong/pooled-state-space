@@ -1,0 +1,6 @@
+model,parameters,published_maximum_SE_difference,provenance
+Shared phi,5,<1e-5,manuscript display; per-parameter checks in validation_checks
+Binary covariate,6,7e-5,manuscript display; per-parameter checks in validation_checks
+Four covariates,8,2.1e-5,manuscript display; per-parameter checks in validation_checks
+Four covariates plus interaction,9,4.0e-6,manuscript display; per-parameter checks in validation_checks
+Fixed observation variance,6,3.9e-5,manuscript snapshot only; historical numerical source untraced

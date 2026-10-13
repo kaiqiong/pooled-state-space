@@ -1,0 +1,11 @@
+"choice","est","lo","hi","n","interval","B","display"
+"Pre-meal (primary)",0.250057865868664,0.0414210645673457,0.426384657841266,1174,"Bootstrap",2000,"Pre-meal (primary)
+N = 1174"
+"Next meal",0.236482908929183,0.0861083166284891,0.353883588283904,1147,"Bootstrap",2000,"Next meal
+N = 1147"
+"180 min post-meal",0.113258747186459,-0.00345477321895834,0.235594761851082,1171,"Bootstrap",2000,"180 min post-meal
+N = 1171"
+"Estimated deviations*",0.232160336715903,0.0952686519386323,0.366454226471868,1174,"Bootstrap",2000,"Estimated deviations*
+N = 1174"
+"Estimated, intercept free",-0.0154283692389153,-0.212227703765607,0.111714137985781,1174,"Bootstrap",2000,"Estimated, intercept free
+N = 1174"
